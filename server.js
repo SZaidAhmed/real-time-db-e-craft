@@ -18,7 +18,7 @@ const removeUser = (userId) => {
 }
 
 const getUser = (userId) => {
-    
+
     return users.find(user => `${user.userId}` === `${userId}`);
 }
 
@@ -54,6 +54,8 @@ const db = mongoose.connection;
 
 db.once("open", () => {
     console.log("db connected");
+
+    //watching notification
     const notificationCollection = db.collection("notifications");
     const notificationChangeStream = notificationCollection.watch();
     notificationChangeStream.on("change", (change) => {
@@ -65,8 +67,23 @@ db.once("open", () => {
                 io.to(connectedUser.socketId).emit("notification", doc)
             }
         }
+    });
+
+    //watching messages
+    const messagesCollection = db.collection("messages");
+    const messagesChangeStream = messagesCollection.watch();
+    messagesChangeStream.on("change", (change) => {
+        if (change.operationType === "insert") {
+            var doc = change.fullDocument;
+            var { reciever } = doc;
+            var connectedUser = getUser(reciever);
+            console.log(connectedUser)
+            if (connectedUser) {
+                io.to(connectedUser.socketId).emit("message", doc);
+            }
+        }
     })
-})
+});
 
 const PORT = process.env.PORT;
 
